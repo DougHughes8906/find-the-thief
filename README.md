@@ -1,0 +1,1 @@
+Command line based game. The player has lost his/her wallet at a party and needs to find who stole it before the party is over. When they player thinks they have the name of the theif, they can call the police. But the player needs to guess correctly the first time, otherwise the real theif will leave once the police arrive. 
