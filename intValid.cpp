@@ -1,7 +1,7 @@
 /*********************************************************************
 ** Program name: intValid.cpp
 ** Author:	Doug Hughes
-** Date:	October 20, 2019
+** Date:	November 30, 2019
 ** Description:	Implement. file for an integer input validation function.
 **		The function waits until an integer is validly entered
 **		by the user and returns this integer. If a line of 
@@ -92,14 +92,12 @@ int intValid()
 		std::getline(std::cin, input);
 
 		// get i to index of first non-space and non-tab character
-
 		int i = 0;
 		while (i < input.length() && (input[i] == ' ' ||
 					      input[i] == '\t'))
 			i++;
 
 		// see if there is an integer starting from this index
-
 		if (input.length() > i && (isdigit(input[i])
 					   || input[i] == '-'))
 		{
@@ -113,15 +111,15 @@ int intValid()
 				i++;
 				// continue adding digits while there are
 				// more in input
-
 				while (i < input.length() && isdigit(input[i]))
 				{	
 					str += input[i];
 					i++;
 				}
 				// make sure the number entered is not a
-				// floating point number
-				if (i == input.length() || input[i] != '.')
+				// floating point number and there is no
+				// additional characters after the numeric input
+				if (i == input.length())
 				{
 					// make sure integer is not too large.
 					// copy string into c-string to allow

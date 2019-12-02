@@ -1,7 +1,7 @@
 /*********************************************************************
 ** Program name: intValid.hpp
 ** Author:	Doug Hughes
-** Date:	October 20, 2019
+** Date:	November 30, 2019
 ** Description:	Header file for an integer input validation function.
 **		The function waits until an integer is validly entered
 **		by the user and returns this integer. If a line of 
