@@ -1,5 +1,15 @@
+/*********************************************************************
+** Program name: thiefMain.cpp
+** Author:		Doug Hughes
+** Date:		December 10, 2019
+** Description:	Main file used to run Find the Thief games.
+**				The program simply allows the console user to either
+**				start and play Find the Thief games (in which case
+**				all of the game flow / functionality is handled by
+**				the ThiefGame class) or to exit the program.
+*********************************************************************/
 
-
+#include <iostream>
 #include "ThiefGame.hpp"
 #include "Menu.hpp"
 
@@ -27,6 +37,7 @@ int main()
 		ThiefGame newGame;
 		newGame.runGame();
 		
+		std::cout << "\n";		
 		curChoice = static_cast<MenuChoice>(startMenu.chooseOption());
 	}
 		

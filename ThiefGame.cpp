@@ -1,3 +1,28 @@
+/*********************************************************************
+** Program name: ThiefGame.cpp
+** Author:		Doug Hughes
+** Date:		December 10, 2019
+** Description:	Implementation file for the ThiefGame class.
+**				The class is used to play the console-based Find the
+**				Thief game. The game involves the player losing their
+**				wallet at a party and having to guess the identity of 
+**				the thief before the party ends. The player can meet
+**				people at the party, pick up clues, interact with
+**				objects in the room, and use various items to help
+**				identify the thief. The party room is represented 
+**				as a matrix of Spaces over which the player can 
+**				traverse and the game takes place over a series of 
+**				turns. Each turn represents one minute of game time
+**				and the player can move to any adjacent space in that
+**				turn. The game is a race against the clock, as the 
+**				player needs to guess the identity of the thief 
+**				before the party is over (the player is informed
+**				of the game end time at the beginning of the game).
+**				Winning the game represents the player calling the
+**				police and guessing the identity of the thief 
+**				correctly. But once the player calls the police, they
+**				only get a single guess.
+*********************************************************************/
 
 #include <iostream>
 #include <string>
@@ -8,6 +33,14 @@
 #include "ThiefGame.hpp"
 #include "Backpack.hpp"
 #include "Space.hpp"
+#include "Floor.hpp"
+#include "Person.hpp"
+#include "Clue.hpp"
+#include "Stereo.hpp"
+#include "FireworksBox.hpp"
+#include "TruthCandyBox.hpp"
+#include "Launcher.hpp"
+#include "intValid.hpp"
 
 // initially indicate that the random seed for the program is 
 // not set
@@ -23,7 +56,13 @@ the player are also set.
 
 ThiefGame::ThiefGame() 
 	: m_backpack{ },
-	  m_gameFinished{ false }
+	  m_gameFinished{ false },
+	  m_hour{ "11" },
+	  m_min{ "00" },
+	  m_isAM{ false },
+	  m_endHour{ "11" },
+	  m_endMin{ "30" },
+	  m_endAM{ false }
 {
 	// set the random seed if it has not already been set in
 	// the program
@@ -38,16 +77,17 @@ ThiefGame::ThiefGame()
 	setEmptyRoom();
 	// create and place the guests in the room (along with the
 	// thief)
-	createGuests(NUM_GUESTS);
-	placeGuests();
+	createGuests(NUM_GUESTS);	
+	placeGuests();	
 	// set all of the remaining Spaces for the room
-	setClues();
+	setClues();	
 	setStereo();
-	setFireworks();
-	setTruthCandy();
+	setLauncher();	
+	setFireworks();	
+	setTruthCandy();	
 	// place the player randomly in the room on an empty floor
 	// space
-	placePlayer();
+	placePlayer();	
 }
 
 /*****************************************************************
@@ -63,7 +103,7 @@ void ThiefGame::setEmptyRoom()
 	for (int i = 0; i < NUM_ROWS; i++)
 	{
 		m_rowStart[i] = new Floor();
-		Space* curSpace = rowStart[i];
+		Space* curSpace = m_rowStart[i];
 		for (int j = 0; j < NUM_COLS - 1; j++)
 		{
 			Space* rightFloor = new Floor();
@@ -126,15 +166,16 @@ bool ThiefGame::createGuests(int numGuests)
 
 	while (numGuests > 0 && possibleGuests.size() > 0)
 	{
-		int guestIndex = getRand(0, possibleGuests.size());
+		int guestIndex = getRand(0, possibleGuests.size() - 1);	
 		auto guestInfo = possibleGuests[guestIndex];
 		Space* nextGuest = new Person(guestInfo.first, guestInfo.second);
 		m_guestList.push_back(nextGuest);
 		numGuests--;
+
 		// remove the added guest from the remaining possible guests to 
-		// add
+		// add 
 		std::swap(possibleGuests[guestIndex], 
-			possibleGuests[possibleGuests.size() - 1];
+			possibleGuests[possibleGuests.size() - 1]);	
 		possibleGuests.pop_back();	
 	}
 
@@ -205,7 +246,7 @@ void ThiefGame::place(Space* newSpace, bool isThief)
 {
 	Space* randFloor = getRandFloor(isThief);
 	
-	replace(curSpace, newSpace);	
+	replace(randFloor, newSpace);	
 }
 
 /*****************************************************************
@@ -247,6 +288,20 @@ void ThiefGame::replace(Space* oldSpace, Space* newSpace)
 		adjacentSpace->setRight(newSpace);
 	}
 
+	// need to check if the old space was the start of a 
+	// row, in which case the rowStart needs to be modified
+	bool foundRStart = false;
+	int i = 0;
+	while (!foundRStart && i < NUM_ROWS)
+	{
+		if (m_rowStart[i] == oldSpace)
+		{
+			m_rowStart[i] = newSpace;
+			foundRStart = true;
+		}
+		i++;
+	}
+
 	// free memory associated with the old space
 	delete oldSpace;
 }
@@ -260,6 +315,7 @@ randomly, but must be on an empty floor space.
 
 void ThiefGame::setClues()
 {
+	// set clue indicating the gender of the thief
 	std::string gendClueStr{ "The thief is " };
 	Person* thiefPtr = dynamic_cast<Person*>(m_thief);	
 	if (thiefPtr->isMale())
@@ -273,10 +329,15 @@ void ThiefGame::setClues()
 	Space* genderClue = new Clue(gendClueStr);
 	place(genderClue, false);
 
+	// set clue indicating a letter in the name of the thief
 	std::string nameClueStr{ "The thief's name contains the letter " };	
 	std::string thiefName = thiefPtr->getName();
-	int letterInd = getRand(0, thiefName.length());
-	nameClueStr += "'" + tolower(thiefName[letterInd]) + "'.";
+	int letterInd = getRand(0, thiefName.length() - 1);
+
+	nameClueStr += "'"; 
+	nameClueStr += tolower(thiefName[letterInd]); 
+	nameClueStr += "'.";
+
 	Space* nameClue = new Clue(nameClueStr);
 	place(nameClue, false); 		
 }
@@ -293,6 +354,20 @@ void ThiefGame::setStereo()
 	Space* partyStereo = new Stereo();
 	place(partyStereo, false);
 }
+
+/*****************************************************************
+Helper method to the constructor.
+Sets one launcher in the room. The method takes no parameters and
+has no return value. The location for the launcher is chosen
+randomly.
+*****************************************************************/
+
+void ThiefGame::setLauncher()
+{
+	Space* partyLauncher = new Launcher();
+	place(partyLauncher, false);
+}
+
 
 /*****************************************************************
 Helper method to the constructor.
@@ -341,8 +416,8 @@ column of the thief.
 
 Space* ThiefGame::getRandFloor(bool isThief) 
 {
-	placeRow = getRand(0, NUM_ROWS - 1);
-	placeCol = getRand(0, NUM_COLS - 1);
+	int placeRow = getRand(0, NUM_ROWS - 1);
+	int placeCol = getRand(0, NUM_COLS - 1);	
 
 	Space* curSpace = m_rowStart[placeRow];
 	for (int i = 1; i <= placeCol; i++)
@@ -352,7 +427,7 @@ Space* ThiefGame::getRandFloor(bool isThief)
 	
 	int curRow = placeRow;
 	int curCol = placeCol;
-
+	
 	// move to the next space while a blank floor space hasn't yet 
 	// been found
 	while (curSpace->getType() != Floor::statType())
@@ -401,30 +476,64 @@ bool ThiefGame::runGame()
 		return false;
 	}
 
+	// game information strings
 	const std::string welcomeMsg{ "\nWelcome to the Find the "
 		"Thief Game!\n" };
 	const std::string gameInfo{ "\nYou are at a party and realize"
-		" that someone has stolen your wallet.\n You need to figure"
+		" that someone has stolen your wallet.\nYou need to figure"
 		" out who the thief is and call the police before\nthe party"
 		" is over. You need to guess the identity of the thief "
-		"correctly the\nfirst time because the thief will leave if "
-		"\nthe police arrive to question someone else. The party "
-		"ends at midnight, so you must\ncall the police before the "
-		"party is over. Meet the guests of the party,\npick up clues,"
-		" and use items in the room to help find the thief.\n"};
+		"correctly\nthe first time because the thief will leave if "
+		"the police arrive to\nquestion someone else. The party "
+		"ends at 11:30PM, so you must\ncall the police before the "
+		"party is over. Meet the guests of\nthe party, pick up clues,"
+		" and use items in the room to help find\nthe thief.\n"};
 
-	// strings that the will represent the time
-	std::string hourStr{ "11" };
-	std::string minStr{ "00" };
-	bool isAM{ false };
+	const std::string mapInfo{ "\nFor each turn of the game you"
+		" will be shown a map of the room. The symbols on\nthe map "
+		"have the following meanings:\n"
+	};
 
-	// strings that represent the end time for the game
-	std::string endHour{ "12" };
-	std::string endMin{ "00" };
-	bool endAM{ true };	
+	const std::string starInfo{ "* - your location in the room" };
+	const std::string PInfo{ "P - a person that you have not yet"
+		" met"};
+	const std::string FInfo{ "F - a box of fireworks. You can move to "
+		"this box to pick up fireworks" };
+	const std::string CInfo{ "C - a clue. This will give you a hint "
+		"regarding the identity of the thief" };
+	const std::string TInfo { "T - a box of truth candy bars. You can "
+		"move to this box to pick up a truth\ncandy bar" };
+	const std::string SInfo { "S - a stereo. You can play songs on the"
+		" stereo that have different effects on\nthe party" };
+	const std::string LInfo{ "L - a launcher. Can be used to quickly "
+		"launch yourself to other parts of the\nroom" };	
+	const std::string lCaseInfo{ "a, b, c, ... - lower case letters"
+		" represent the first letters of the names of\npeople that"
+		" you have already met" };
 
+	const std::string noteInfo{ "\nAll of this information is also"
+		" written in your notepad for reference.\n" };	
+
+	const std::vector<std::string> symbolsInfo{ starInfo, PInfo,
+		FInfo, CInfo, TInfo, SInfo, LInfo, lCaseInfo }; 
+
+	// present player with information about the game
 	std::cout << welcomeMsg
 			  << gameInfo;
+
+	std::cout << "\nEnter '1' to continue:\n";
+	intValid(1, 1);
+
+	std::cout << mapInfo;
+	for (std::string info : symbolsInfo)
+	{
+		std::cout << info << "\n";
+		m_backpack.addNote(info);
+	}
+	std::cout << noteInfo;
+
+	std::cout << "\nEnter '1' to start the game:\n";
+	intValid(1, 1);
 
 	const std::string moveChoice{ "Make move for the turn" };
 	const std::string backpackChoice{ "Open your backpack" };
@@ -449,23 +558,25 @@ bool ThiefGame::runGame()
 	
 	while(!m_gameFinished)
 	{
-		// create move menu for the turn based on where the player
-		// can currently move
-		Menu moveMenu;
-		setMoveMenu(moveMenu);
-
 		std::cout << "\nCurrent time: ";
-		printTime(hourStr, minStr, isAM);
+		printTime();
 		printRoom();
 
 		// interact with the current space. Nothing happens if on
 		// a Floor space
 		interact();	
-		
+
+		// create move menu for the turn based on where the player
+		// can currently move
+		Menu moveMenu;
+		std::vector<Space*> moveChoices;
+		setMoveMenu(moveMenu, moveChoices);
+
+		std::cout << "\n";		
 		MainChoice playerChoice = 
 			static_cast<MainChoice>(mainMenu.chooseOption());
 
-		while (playerChoice != MOVE)
+		while (playerChoice != MOVE && !m_gameFinished)
 		{
 			// player opens backpack, return value indicates the game state
 			BPResult gameState = 
@@ -484,7 +595,7 @@ bool ThiefGame::runGame()
 				}
 				case FIREWORKS:
 				{
-					useFireworks(endHour, endMin, endAM);
+					useFireworks();
 					break;
 				}
 				case TRUTH_CANDY:
@@ -498,8 +609,9 @@ bool ThiefGame::runGame()
 				}
 			}			
 	
-			if (!gameFinished)	
+			if (!m_gameFinished)	
 			{
+				std::cout << "\n";
 				playerChoice = 
 					static_cast<MainChoice>(mainMenu.chooseOption());
 			}
@@ -508,20 +620,27 @@ bool ThiefGame::runGame()
 		if (!m_gameFinished)
 		{
 			// perform movement
-			movePlayer(moveMenu);	
+			movePlayer(moveMenu, moveChoices);	
 			// increment the time by a minute
-			addMin(hourStr, minStr, isAM);
+			addMin();
 		}
 
 		// check to see if this is the end time, if so, force the player
 		// to call the police now
-		if (!m_gameFinished && hourStr == endHour && minStr == endMin
-			&& isAM == endAM) 
+		if (!m_gameFinished && m_hour == m_endHour && m_min == m_endMin
+			&& m_isAM == m_endAM) 
 		{
 			std::cout << "\nThe party is ending, so you call the police "
 				<< "at the last minute!\n";
 			int endVal = m_backpack.callPolice();
 			if (endVal == 0)
+			{
+				std::cout << "\nYou decided against calling the police"
+					<< " as you have no clue as to who stole your wallet!\n"
+					<< "The thief leaves along with the rest of the guests "
+					<< "as the party ends.\n";
+			}
+			else if (endVal == -1)
 			{
 				gameLoss();
 			}
@@ -536,19 +655,14 @@ bool ThiefGame::runGame()
 }
 
 /*****************************************************************
-Prints the current time in the game to the console. Takes three
-parameters and has no return value. The first parameter 
-represents the hour as a string, the second parameter represents
-the minute as a string and the last parameter is a bool value 
-that holds true if the time is in the AM and false if the time
-is in the PM.
+Prints the current game time to the console. The method takes
+no paramters and has no return value.
 *****************************************************************/
 
-void ThiefGame::printTime(std::string hour, std::string min, 
-	bool isAM) const
-{
-	std::cout << hour << ":" << min;
-	if (isAM)
+void ThiefGame::printTime() const
+{	
+	std::cout << m_hour << ":" << m_min;
+	if (m_isAM)
 	{
 		std::cout << "AM\n";
 	}
@@ -558,8 +672,44 @@ void ThiefGame::printTime(std::string hour, std::string min,
 	}
 }
 
+
 /*****************************************************************
-Adds a minute to the time for the game by modifying the 
+Prints a given time to the console. Takes three
+parameters. The first parameter represents the hour as a string, 
+the second parameter represents the minute as a string and the 
+last parameter is a bool value that holds true if the time is in 
+the AM and false if the time is in the PM. The method returns as
+a string the same information that is printed to the console.
+*****************************************************************/
+
+std::string ThiefGame::printTime(std::string hour, std::string min, 
+	bool isAM) const
+{
+	std::string timeInfo = hour + ":" + min;	
+	if (isAM)
+	{
+		timeInfo += "AM";	
+	}
+	else
+	{
+		timeInfo += "PM";	
+	}
+	std::cout << timeInfo << "\n";
+	return timeInfo;
+}
+
+/*****************************************************************
+Adds a minute to the current game time. The method takes no 
+parameters and has no return value.
+*****************************************************************/
+
+void ThiefGame::addMin() 
+{
+	addMin(m_hour, m_min, m_isAM);
+}
+
+/*****************************************************************
+Adds a minute to a given time for by modifying the 
 variables representing the time. The method has no return value
 and has three reference parameters (representing the hour, 
 the minute, and a bool value that is set to true if the time is
@@ -567,8 +717,9 @@ currently in the AM).
 *****************************************************************/
 
 void ThiefGame::addMin(std::string &hour, std::string &min,
-	bool &isAM) const
+	bool &isAM) 
 {
+	// special handling if the time is about to enter new hour
 	if(min == "59")
 	{
 		if (hour == "12")
@@ -577,7 +728,7 @@ void ThiefGame::addMin(std::string &hour, std::string &min,
 		}
 		else if (hour == "11")
 		{
-			hour = "12"
+			hour = "12";
 			isAM = !isAM;
 		}
 		else
@@ -595,6 +746,7 @@ void ThiefGame::addMin(std::string &hour, std::string &min,
 		min = "00";
 	}
 
+	// normal case where minute is added, but it is not a new hour
 	else
 	{
 		int minInt = std::stoi(min);
@@ -611,28 +763,53 @@ void ThiefGame::addMin(std::string &hour, std::string &min,
 
 /*****************************************************************
 Method that builds the move menu for the player based upon the
-players current location. The method takes no parameters and has
-no return value.
+players current location. The method takes as reference parameters
+the Menu that will be built and a vector of space pointers in 
+which the possible move choices will be stored.
 *****************************************************************/
 
-void ThiefGame::setMoveMenu(Menu &moveMenu) const
+void ThiefGame::setMoveMenu(Menu &moveMenu, 
+	std::vector<Space*> &moveChoices) const
 {
 	if (m_playerSpace->getUp() != nullptr)
 	{
 		moveMenu.addOption("Move up");
+		moveChoices.push_back(m_playerSpace->getUp());
 	}
 	if (m_playerSpace->getRight() != nullptr)
 	{
 		moveMenu.addOption("Move right");
+		moveChoices.push_back(m_playerSpace->getRight());
 	}
 	if (m_playerSpace->getDown() != nullptr)
 	{
 		moveMenu.addOption("Move down");
+		moveChoices.push_back(m_playerSpace->getDown());
 	}
 	if (m_playerSpace->getLeft() != nullptr)
 	{
 		moveMenu.addOption("Move left");
+		moveChoices.push_back(m_playerSpace->getLeft());
 	}
+}
+
+/*****************************************************************
+Prompts the player with a menu to move and performs the movement
+based on the player's choice. The method takes as a parameter the
+move menu with which to prompt the player as a reference and as
+a second parameter a vector of Spaces representing the possible
+Spaces the player can move (in the same order as presented in 
+the menu). The method has no return value.
+*****************************************************************/
+
+void ThiefGame::movePlayer(const Menu &moveMenu, 
+	const std::vector<Space*> &moveChoices)
+{
+	std::cout << "\nChoose which direction to move.\n";
+	int choice = moveMenu.chooseOption();
+	// have to subtract one from the choice because the choice
+	// return values start at 1 rather than 0
+	m_playerSpace = moveChoices[choice - 1];
 }
 
 /*****************************************************************
@@ -690,11 +867,7 @@ return value.
 *****************************************************************/
 
 void ThiefGame::performEvent()
-{
-	// the event type returned is an empty string if nothing more
-	// needs to be done (i.e. fully handled by the derived Space object)
-	// and returns the type of the Space if additionaly actions need
-	// to be performed in the game
+{	
 	std::string eventType = m_playerSpace->event();
 	// make sure backpack has info on who thief is (to check when police
 	// are called if player guess is correct)
@@ -704,11 +877,45 @@ void ThiefGame::performEvent()
 		m_backpack.setThief(thiefPtr->getName());
 	}
 
-	if (eventType == Stereo::statType())
-	{	
-		// about half of the party leaves, the exact guests are chosen
-		// at random but cannot include the thief
-		randGuestsLeave();
+	if (eventType == Person::statType())
+	{
+		Person* guestPtr = dynamic_cast<Person*>(m_playerSpace);
+		m_backpack.addContact(guestPtr->getName());
+	}
+
+	else if (eventType == Stereo::statType())
+	{
+		static constexpr int STEREO_OFF{ 0 };
+		static constexpr int BAD_MUSIC{ 1 };
+		static constexpr int GOOD_MUSIC{ 2 };
+		// try to play the stereo
+		Stereo* sterPtr = dynamic_cast<Stereo*>(m_playerSpace);
+		int stereoVal = sterPtr->playStereo();
+		if (stereoVal == BAD_MUSIC)
+		{	
+			// about half of the party leaves, the exact guests are chosen
+			// at random but cannot include the thief
+			randGuestsLeave();
+			std::cout << "Enter '1' to continue:\n";
+			intValid(1, 1);
+			std::cout << "\nNew map of the room following the exodus:\n";
+			printRoom();
+		}
+		else if (stereoVal == GOOD_MUSIC)
+		{
+			// extend the game time by 15 minutes
+			static constexpr int addedMins{ 15 };
+			std::cout << "The excitement of the guests causes the "
+				<< "party to last longer!\n";
+			extendGame(addedMins);
+		}
+	}
+
+	else if (eventType == Launcher::statType())
+	{
+		Launcher* launchPtr = dynamic_cast<Launcher*>(m_playerSpace);
+		// use the launcher
+		useLauncher(launchPtr->chooseDirection());
 	}
 
 	else if (eventType == FireworksBox::statType())
@@ -716,10 +923,31 @@ void ThiefGame::performEvent()
 		getItem(FireworksBox::statItem());
 	}
 
-	else if (eventType = TruthCandyBox::statType())
+	else if (eventType == TruthCandyBox::statType())
 	{
 		getItem(TruthCandyBox::statItem());
 	} 
+}
+
+/*****************************************************************
+Information is received from the player's current space and 
+added to the player's notepad (within the backpack). The method
+takes no parameters and has no return value.
+*****************************************************************/
+
+void ThiefGame::getInfo()
+{
+	std::string info = m_playerSpace->information();
+	m_backpack.addNote(info);
+
+	// if the info received is from a clue, remove the clue from
+	// the ground after taking a note
+	if (m_playerSpace->getType() == Clue::statType())
+	{	
+		Space* emptyFloor = new Floor();
+		replace(m_playerSpace, emptyFloor);
+		m_playerSpace = emptyFloor;
+	}	
 }
 
 /*****************************************************************
@@ -733,12 +961,13 @@ void ThiefGame::randGuestsLeave()
 {
 	int numGuestsLeave = m_guestList.size() / 2;
 
+	std::cout << "\n";
 	// the thief is held at index 0, so only choose indices from
 	// 1 and above
 	for (int i = 0; i < numGuestsLeave; i++)
 	{
 		int randInd = getRand(1, m_guestList.size() - 1);
-		Person* guest = dynamic_cast<Person*>(m_guestList[randInd];
+		Person* guest = dynamic_cast<Person*>(m_guestList[randInd]);
 		std::string leaveMsg = "";
 		if (guest->isMet())
 		{
@@ -746,7 +975,7 @@ void ThiefGame::randGuestsLeave()
 		}
 		else
 		{
-			leaveMsg += "A guest you did not meet"
+			leaveMsg += "A guest you did not meet";
 		}
 		leaveMsg += " has left the party.";
 		
@@ -803,7 +1032,7 @@ void ThiefGame::gameLoss()
 	{
 		std::cout << "She ";
 	}
-	std::cout << "escapes as the police are busy talking with the"
+	std::cout << "escapes as the police are busy talking with\nthe"
 		<< " wrong person!\n";
 	
 	m_gameFinished = true;
@@ -830,33 +1059,44 @@ void ThiefGame::gameWin()
 		std::cout << "she ";
 	}
 
-	std::cout << "is the thief! Congratulations, you correctly "
+	std::cout << "is the thief!\nCongratulations, you correctly "
 		<< "identified the thief and your wallet is returned to you!\n";
 
 	m_gameFinished = true;
 }
 
 /*****************************************************************
-The player uses fireworks. The effect on the game state is that
-the game end time is prolonged by 15 minutes. The method has no 
-return value and takes three reference parameters. The first 
-parameter holds the end hour as a string, the second parameter 
-holds the end minute as a string, and the last parameter is a bool 
-value that is true if the current end time is AM and false 
-otherwise.
+Extends the end game time by a specified number of minutes. The 
+method takes no parameters and has no return value.
 *****************************************************************/
 
-void ThiefGame::useFireworks(std::string &endHour, 
-	std::string &endMin, bool &endAM)
-{
-	constexpr int addedMin{ 15 };
-	for (int i = 0; i < addedMin; i++)
+void ThiefGame::extendGame(int addedMins)
+{	
+	for (int i = 0; i < addedMins; i++)
 	{
-		addMin(endHour, endMin, endAM);
+		addMin(m_endHour, m_endMin, m_endAM);
 	}
+	std::string newEnd = "The new party end time is: ";
+	std::cout << newEnd;	
+	newEnd += printTime(m_endHour, m_endMin, m_endAM);
+	m_backpack.addNote(newEnd);
+}
+
+
+/*****************************************************************
+The player uses fireworks. The effect on the game state is that
+the game end time is prolonged by 10 minutes. The method takes
+no parameters and has no return value. 
+*****************************************************************/
+
+void ThiefGame::useFireworks()
+{
+	constexpr int addedMin{ 10 };
+
+	extendGame(addedMin);
+	
 	std::cout << "\nThe fireworks excite the guests and the party will "
-		<< "last longer!\nThe new party end time is: ";
-	printTime(endHour, endMin, endAM);
+		<< "last longer!\n";	
 }
 
 /*****************************************************************
@@ -883,11 +1123,11 @@ void ThiefGame::useTruthCandy()
 	std::cout << "\nYou: Here, try out this candy bar, it's "
 		<< "really good!\n"
 		<< guestName << ": Thanks! ... Mmmm this is tasty.. But it is"
-		<< " strange that you're carrying candy around at a party. "
-		<< "And you've got a poor sense of style, a weird looking haircut"
+		<< " strange that you're carrying\ncandy around at a party. "
+		<< "And you've got a poor sense of style, a weird\nlooking haircut"
 		<< ", and a..\n"
 		<< "You: OKAY, thanks.. Appreciate the honesty. I have a "
-		<< "question, did you steal my wallet tonight?\n"
+		<< "question, did you steal my\nwallet tonight?\n"
 		<< guestName << ": ";
 
 	if (m_playerSpace == m_thief)
@@ -902,5 +1142,128 @@ void ThiefGame::useTruthCandy()
 	}
 	std::cout << "steal your wallet!\n";
 	m_backpack.addNote(noteStr);	
+}
+
+/*****************************************************************
+Allows the player to use the launcher. Launches the player in 
+the direction of their choice (or no launch at all if they so
+choose). The method has no return value and the int value of
+the parameter represents the direciton of the launch. The 
+argument values represent:
+1 - no launch
+2 - launch up
+3 - launch right
+4 - launch down 
+5 - launch left
+If an argument is passed that does not hold one of these values,
+then the player is not launched.
+*****************************************************************/
+
+void ThiefGame::useLauncher(int direction)
+{
+	static constexpr int NOLAUNCH{ 1 };
+	static constexpr int UP{ 2 };
+	static constexpr int RIGHT{ 3 };
+	static constexpr int DOWN{ 4 };
+	static constexpr int LEFT{ 5 };
+
+	static const std::string crashMsg{ "\nYou fly across the room "
+		"and slam into the wall!\n" };
+	static const std::string mapMsg{ "\nAn updated map of the room:\n" };
+
+	// pointer that is used for determining new player location
+	Space* nextSpace = m_playerSpace;
+	// old space which will be used to determine if the player
+	// actually moved from the launch location
+	Space* oldSpace = m_playerSpace;
+
+	// move the player to the far edge of the room in the
+	// direction which they choose
+	switch (direction)
+	{
+		case UP:
+		{
+			nextSpace = nextSpace->getUp();
+			while (nextSpace != nullptr)
+			{	
+				m_playerSpace = nextSpace;
+				nextSpace = nextSpace->getUp();
+			} 
+			std::cout << crashMsg << mapMsg;
+			printRoom();
+			break;
+		}
+
+		case RIGHT:
+		{
+			nextSpace = nextSpace->getRight();
+			while (nextSpace != nullptr)
+			{
+				m_playerSpace = nextSpace;
+				nextSpace = nextSpace->getRight();
+			}
+			std::cout << crashMsg << mapMsg;
+			printRoom();	
+			break;
+		}
+
+		case DOWN:
+		{
+			nextSpace = nextSpace->getDown();
+			while (nextSpace != nullptr)
+			{
+				m_playerSpace = nextSpace;
+				nextSpace = nextSpace->getDown();
+			}
+			std::cout << crashMsg << mapMsg;
+			printRoom();				
+			break;
+		}
+
+		case LEFT:
+		{
+			nextSpace = nextSpace->getLeft();
+			while (nextSpace != nullptr)
+			{
+				m_playerSpace = nextSpace;
+				nextSpace = nextSpace->getLeft();
+			}
+			std::cout << crashMsg << mapMsg;
+			printRoom();	
+			break;
+		}
+
+		// do nothing if player chooses or invalid argument value
+		default:
+		{
+			break;
+		}
+	}
+
+	// if player launched to a new Space, need to interact with
+	// the new Space
+	if (m_playerSpace != oldSpace)
+	{
+		interact();
+	} 
+}
+
+/*****************************************************************
+Destructor. Frees the memory associated with each of the 
+dynamically allocated Spaces in the room matrix.
+*****************************************************************/
+
+ThiefGame::~ThiefGame()
+{
+	for (int i = 0; i < NUM_ROWS; i++)
+	{
+		Space* curSpace = m_rowStart[i];
+		while (curSpace != nullptr)
+		{
+			Space* nextSpace = curSpace->getRight();
+			delete curSpace;
+			curSpace = nextSpace;
+		}
+	}
 }
 

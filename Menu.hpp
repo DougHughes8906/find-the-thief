@@ -1,7 +1,7 @@
 /*********************************************************************
 ** Program name: Menu.hpp
 ** Author:		Doug Hughes
-** Date:		November, 20 2019
+** Date:		December 2, 2019
 ** Description:	Header file for the Menu class.
 **		The class allows for the creation, storage, and use
 **		of a dynamic menu. The sole member variable is a 
@@ -18,6 +18,8 @@
 **		integer).
 **		* Added November 20, 2019 - the changeOption method which
 **		allows individual options in the menu to be changed.
+**		* Added December 2, 2019 - the deleteLast method which
+**		deletes the last option in the menu.
 *********************************************************************/
 
 #ifndef MENU_HPP
@@ -58,7 +60,10 @@ class Menu {
 
 		// prompts the user to select an option from the menu
 		// and returns the numeric value of the option selected
-		int chooseOption() const;	
+		int chooseOption() const;
+
+		// deletes the last option in the menu
+		void deleteLast();	
 };
 
 #endif

@@ -1,7 +1,7 @@
 /*********************************************************************
 ** Program name: Menu.cpp
 ** Author:		Doug Hughes
-** Date:		November, 20 2019
+** Date:		December 2, 2019
 ** Description:	Implementation file for the Menu class.
 **		The class allows for the creation, storage, and use
 **		of a dynamic menu. The sole member variable is a 
@@ -18,6 +18,8 @@
 **		integer).
 **		* Added November 20, 2019 - the changeOption method which
 **		allows individual options in the menu to be changed.
+**		* Added December 2, 2019 - the deleteLast method which
+**		deletes the last option in the menu. 
 *********************************************************************/
 
 #include "Menu.hpp"
@@ -133,4 +135,14 @@ int Menu::chooseOption() const
 	}
 
 	return intValid(1, options.size());
+}
+
+/***********************************************************************
+Deletes the last option in the menu. The method takes no parameters 
+and has no return value.
+***********************************************************************/
+
+void Menu::deleteLast()
+{
+	options.pop_back();
 }

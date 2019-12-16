@@ -1,4 +1,28 @@
-
+/*********************************************************************
+** Program name: ThiefGame.hpp
+** Author:		Doug Hughes
+** Date:		December 10, 2019
+** Description:	Header file for the ThiefGame class.
+**				The class is used to play the console-based Find the
+**				Thief game. The game involves the player losing their
+**				wallet at a party and having to guess the identity of 
+**				the thief before the party ends. The player can meet
+**				people at the party, pick up clues, interact with
+**				objects in the room, and use various items to help
+**				identify the thief. The party room is represented 
+**				as a matrix of Spaces over which the player can 
+**				traverse and the game takes place over a series of 
+**				turns. Each turn represents one minute of game time
+**				and the player can move to any adjacent space in that
+**				turn. The game is a race against the clock, as the 
+**				player needs to guess the identity of the thief 
+**				before the party is over (the player is informed
+**				of the game end time at the beginning of the game).
+**				Winning the game represents the player calling the
+**				police and guessing the identity of the thief 
+**				correctly. But once the player calls the police, they
+**				only get a single guess.
+*********************************************************************/
 
 #ifndef THIEFGAME_HPP
 #define THIEFGAME_HPP
@@ -11,9 +35,9 @@ class ThiefGame {
 	private:
 		// constants to represent the size of the room
 		// and the starting # of guests
-		constexpr int NUM_ROWS = 8;
-		constexpr int NUM_COLS = 12;
-		constexpr int NUM_GUESTS = 10;
+		static constexpr int NUM_ROWS = 8;
+		static constexpr int NUM_COLS = 12;
+		static constexpr int NUM_GUESTS = 10;
 
 		// holds pointers to the starting spaces for each
 		// row in the room
@@ -39,6 +63,18 @@ class ThiefGame {
 
 		// the player's backpack
 		Backpack m_backpack;
+
+		// variables that are used to represent the current 
+		// game time
+		std::string m_hour;
+		std::string m_min;
+		bool m_isAM;
+
+		// variables that are used to represent the end
+		// game time
+		std::string m_endHour;
+		std::string m_endMin;
+		bool m_endAM;
 
 		// meant to hold true once the random seed for the 
 		// program has been set and false beforehand
@@ -95,6 +131,11 @@ class ThiefGame {
 		// no parameters and has no return value.
 		void setStereo();
 
+		// Creates the launcher for the game and places it in
+		// a random location in the room. The method takes
+		// no parameters and has no return value.
+		void setLauncher();
+
 		// Creates the fireworks box for the game and places
 		// it in a random location in the room. The method
 		// takes no parameters and has no return value.
@@ -117,14 +158,22 @@ class ThiefGame {
 		// the space is saved) and false otherwise. 
 		Space* getRandFloor(bool isThief);
 
-		// Prints the current in-game time to the console. 
-		// The method has no return value. The first parameter
-		// represents the current hour as a string, the second
-		// parameter the current minute as a string and the 
-		// third parameter holds true if the time is AM and
-		// false otherwise.
-		void printTime(std::string hour, std::string min, 
+		// Prints the current game time to the console. The
+		// method takes no parameters and has no return value.
+		void printTime() const;
+
+		// Prints the a given time to the console. 
+		// The first parameter represents the current hour as 
+		// a string, the second parameter the current minute 
+		// as a string and the third parameter holds true if 
+		// the time is AM and false otherwise. The method returns
+		// as a string the same information that is printed.
+		std::string printTime(std::string hour, std::string min, 
 			bool isAM) const;
+
+		// Adds a minute to the current game time. Takes
+		// no paramters and has no return value.
+		void addMin();
 
 		// Adds a minute to a given time. The method has
 		// no return value and takes in three reference
@@ -134,14 +183,29 @@ class ThiefGame {
 		// the third parameter holds true if the time is AM
 		// and false otherwise.
 		void addMin(std::string &hour, std::string &min,
-			bool &isAM) const;
+			bool &isAM);
 
 		// Sets up the player's move menu for a single 
 		// turn. The menu is built based on where the player
-		// can move to from the current player location. The
-		// method has no return value and takes a single 
-		// reference parameter representing the move menu.
-		void setMoveMenu(Menu &moveMenu) const;
+		// can move to from the current player location. 
+		// The method takes two reference parameters. The 
+		// first represents the menu that will be built and
+		// the second is a vector of space pointers that will
+		// hold the possible move choices for the player. The
+		// method has no return value.
+		void setMoveMenu(Menu &moveMenu,
+			std::vector<Space*> &moveChoices) const;
+
+		// Prompts the player with a menu to move and 
+		// performs the movement based on the player's 
+		// choice. The method's first parameter is the
+		// menu with which the player will be prompted
+		// and the second parameter is a vector of Space
+		// pointers representing each of the choices 
+		// (need to be in the same order as presented in 
+		// the menu). The method has no return value. 
+		void movePlayer(const Menu &moveMenu,
+			const std::vector<Space*> &moveChoices);
 
 		// Prints the current state of the room as a grid.
 		// The method prints a '*' at the location of the
@@ -161,6 +225,11 @@ class ThiefGame {
 		// the player is currently located. The method takes
 		// no parameters and has no return value.
 		void performEvent();
+
+		// Information is received from the player's current
+		// space and added to the player's notepad. The method
+		// takes no paramters and has no return value.
+		void getInfo();
 
 		// Deletes about half of the guests from the party,
 		// simulating these guests leaving the party. The
@@ -191,21 +260,27 @@ class ThiefGame {
 		// return value.
 		void gameWin();
 
+		// Adds a specified number of minutes to the end game time.
+		// The method takes no parameters and has no return value.
+		void extendGame(int addedMins);
+
 		// The player uses fireworks. The effect is that the 
-		// game end time is delayed. The method has no return
-		// value and takes three reference parameters. The 
-		// first parameter represents the end hour as a string,
-		// the second parameter represents the end minute as
-		// a string, and the last parameter is a bool value that
-		// holds true if the end time is currenty AM and false
-		// otherwise. 
-		void useFireworks(std::string &endHour, std::string &endMin,
-			bool &endAM);
+		// game end time is delayed. The method takes no parameters
+		// and has no return value. 
+		void useFireworks();
 
 		// The player gives truth candy to a guest. The guest reveals
 		// whether or not he/she is the thief. The method takes no 
 		// parameters and has no return value.
-		void useTruthCandy(); 
+		void useTruthCandy();
+
+		// Allows the player to use the launcher. Launches the player
+		// in the direction of their choice (or no launch at all if 
+		// they so choose). The method has no return value and takes
+		// an int parameter representing the direction. 1 means no
+		// launch, 2 means up, 3 means right, 4 means down, and 5 
+		// means left.
+		void useLauncher(int direction); 
  
 	public:
 		// default constructor, sets up the initial state for
@@ -218,6 +293,10 @@ class ThiefGame {
 		// completes a single game and returns true. The method
 		// takes no parameters.
 		bool runGame();
+
+		// Destructor. Frees the memory associated with each
+		// of the dynamically allocated Spaces in the room matrix.
+		~ThiefGame();
 };
 
 #endif
